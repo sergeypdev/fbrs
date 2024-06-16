@@ -1,10 +1,12 @@
 #ifndef FBRS_H
 #define FBRS_H
 
-// #include <emmintrin.h>
-
-// #define CPU_X64
+// CPU detection
+#if defined(__x86_64__) || defined(_M_X64)
+#define CPU_X64
+#elif defined(__aarch64__) || defined(_M_ARM64)
 #define CPU_AARCH64
+#endif
 
 #ifdef _MSC_VER
 #define ABI_WIN64
@@ -12,17 +14,19 @@
 #define ABI_SYSV
 #endif
 
+typedef unsigned long fbrs_ptr_t;
+
 struct fbrs_context_t {
   // put registers here
 #ifdef CPU_X64
 
 #ifdef ABI_SYSV
-  void *rip, *rsp;
+  void *ip, *sp;
   void *rbx, *rbp, *r12, *r13, *r14, *r15;
 #endif // ABI_SYSV
 
 #ifdef ABI_WIN64
-  void *rip, *rsp;
+  void *ip, *sp;
   void *rbx, *rbp, *rsi, *rdi, *r12, *r13, *r14, *r15;
   __m128 xmm6, xmm7, xmm8, xmm9, xmm10, xmm11, xmm12, xmm13, xmm14, xmm15;
 #endif // ABI_WIN64
@@ -31,13 +35,16 @@ struct fbrs_context_t {
 
 #ifdef CPU_AARCH64
 
-  void *lr, *sp; // link register and stack pointer
+  void *ip, *sp; // link register and stack pointer
   void *r19, *r20, *r21, *r22, *r23, *r24, *r25, *r26, *r27, *r28, *r29;
   double v8, v9, v10, v11, v12, v13, v14, v15; // lower 64 bits of v8-v15
 
 #endif // CPU_AARCH64
 };
 
+// This function will give you a stack pointer that is correctly aligned
+// and can be used for a new fiber.
+void *fbrs_get_stack_pointer(void *stack_memory, fbrs_ptr_t stack_size);
 void fbrs_save_context(struct fbrs_context_t *context);
 void fbrs_load_context(struct fbrs_context_t *context);
 void fbrs_switch_context(struct fbrs_context_t *old_context,
@@ -323,6 +330,21 @@ DECL_SECTION_TEXT unsigned int fbrs_switch_context_code[] = {
 };
 
 #endif // CPU_AARCH64
+
+void *fbrs_get_stack_pointer(void *stack_memory, fbrs_ptr_t stack_size) {
+  if (stack_memory == 0) {
+    return 0;
+  }
+
+  fbrs_ptr_t stack_end = ((fbrs_ptr_t)stack_memory + stack_size) & -16L;
+  stack_end -= 128;
+
+#ifdef CPU_X64
+  stack_end -= 8;
+#endif
+
+  return (void *)stack_end;
+}
 
 static THREAD_LOCAL struct fbrs_context_t *current_fiber = 0;
 

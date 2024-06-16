@@ -17,13 +17,11 @@ void fiber_entry() {
 int main(int argc, char **argv) {
   char stack[STACK_SIZE];
 
-  char *sp = (char *)(stack + STACK_SIZE);
-  sp = (char *)((uintptr_t)sp & -16L);
-  sp -= 128;
+  void *sp = fbrs_get_stack_pointer((void *)stack, STACK_SIZE);
 
   struct fbrs_context_t context = {0};
 
-  context.lr = (void *)fiber_entry;
+  context.ip = (void *)fiber_entry;
   context.sp = (void *)sp;
 
   for (int i = 0; i < 5; i++) {
