@@ -1,9 +1,12 @@
 #ifndef FBRS_H
 #define FBRS_H
 
+#include <inttypes.h>
+
 // CPU detection
 #if defined(__x86_64__) || defined(_M_X64)
 #define CPU_X64
+#include <immintrin.h>
 #elif defined(__aarch64__) || defined(_M_ARM64)
 #define CPU_AARCH64
 #endif
@@ -13,8 +16,6 @@
 #else
 #define ABI_SYSV
 #endif
-
-typedef unsigned long fbrs_ptr_t;
 
 struct fbrs_context_t {
   // put registers here
@@ -44,7 +45,7 @@ struct fbrs_context_t {
 
 // This function will give you a stack pointer that is correctly aligned
 // and can be used for a new fiber.
-void *fbrs_get_stack_pointer(void *stack_memory, fbrs_ptr_t stack_size);
+void *fbrs_get_stack_pointer(void *stack_memory, uintptr_t stack_size);
 void fbrs_save_context(struct fbrs_context_t *context);
 void fbrs_load_context(struct fbrs_context_t *context);
 void fbrs_switch_context(struct fbrs_context_t *old_context,
@@ -331,12 +332,12 @@ DECL_SECTION_TEXT unsigned int fbrs_switch_context_code[] = {
 
 #endif // CPU_AARCH64
 
-void *fbrs_get_stack_pointer(void *stack_memory, fbrs_ptr_t stack_size) {
+void *fbrs_get_stack_pointer(void *stack_memory, uintptr_t stack_size) {
   if (stack_memory == 0) {
     return 0;
   }
 
-  fbrs_ptr_t stack_end = ((fbrs_ptr_t)stack_memory + stack_size) & -16L;
+  uintptr_t stack_end = ((uintptr_t)stack_memory + stack_size) & -16L;
   stack_end -= 128;
 
 #ifdef CPU_X64
