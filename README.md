@@ -12,13 +12,14 @@ or presence of libc etc. Just a few simple utilities to switch between "contexts
 TODO:
 - [X] Windows x64 support
 - [X] SysV (Unix) x64 support
-- [ ] Windows ARM support
-- [ ] SysV ARM support
+- [X] ARM64 support
 - [X] CPU context saving, loading and switching
-- [ ] Example scheduler
+- [ ] Scheduler
 - [ ] Proper stack memory protection utils
 - [ ] Fiber Local Storage
 - [ ] gdb probes support
 - [ ] valgrind stack awareness
 - [ ] cooperative synchronization primitives (will require a scheduler)
 - [ ] async io (if I get to it)
+
+Based on the awesome [Fibers, Oh My!](https://graphitemaster.github.io/fibers/) blog post.
