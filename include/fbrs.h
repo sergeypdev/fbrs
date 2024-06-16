@@ -1,9 +1,10 @@
 #ifndef FBRS_H
 #define FBRS_H
 
-#include <emmintrin.h>
+// #include <emmintrin.h>
 
-#define CPU_X64
+// #define CPU_X64
+#define CPU_AARCH64
 
 #ifdef _MSC_VER
 #define ABI_WIN64
@@ -27,9 +28,15 @@ struct fbrs_context_t {
 #endif // ABI_WIN64
 
 #endif // CPU_X64
-};
 
-int fbrs_id();
+#ifdef CPU_AARCH64
+
+  void *lr, *sp; // link register and stack pointer
+  void *r19, *r20, *r21, *r22, *r23, *r24, *r25, *r26, *r27, *r28, *r29;
+  double v8, v9, v10, v11, v12, v13, v14, v15; // lower 64 bits of v8-v15
+
+#endif // CPU_AARCH64
+};
 
 void fbrs_save_context(struct fbrs_context_t *context);
 void fbrs_load_context(struct fbrs_context_t *context);
@@ -55,7 +62,6 @@ struct fbrs_context_t *fbrs_current_context();
 #define THREAD_LOCAL __thread
 #endif
 
-// Save, load and
 #ifdef CPU_X64
 
 #ifdef ABI_SYSV
@@ -247,7 +253,78 @@ DECL_SECTION_TEXT unsigned char fbrs_switch_context_code[] = {
 
 #endif // CPU_X64
 
-static THREAD_LOCAL struct fbrs_context_t *current_fiber = NULL;
+#ifdef CPU_AARCH64
+
+DECL_SECTION_TEXT unsigned int fbrs_save_context_code[] = {
+    0xf900001e, // str     x30, [x0]
+    0x910003e9, // mov     x9, sp
+    0xf9000409, // str     x9, [x0, #8]
+    0xa9015013, // stp     x19, x20, [x0, #16]
+    0xa9025815, // stp     x21, x22, [x0, #32]
+    0xa9036017, // stp     x23, x24, [x0, #48]
+    0xa9046819, // stp     x25, x26, [x0, #64]
+    0xa905701b, // stp     x27, x28, [x0, #80]
+    0xf9002c1d, // str     x29, [x0, #88]
+    0x6d062408, // stp     d8, d9, [x0, #96]
+    0x6d072c0a, // stp     d10, d11, [x0, #112]
+    0x6d08340c, // stp     d12, d13, [x0, #128]
+    0x6d093c0e, // stp     d14, d15, [x0, #144]
+    0xd2800000, // mov     x0, #0x0
+    0xd65f03c0, // ret
+};
+
+DECL_SECTION_TEXT unsigned int fbrs_load_context_code[] = {
+    0xf940001e, // ldr     x30, [x0]
+    0xf9400409, // ldr     x9, [x0, #8]
+    0x9100013f, // mov     sp, x9
+    0xa9415013, // ldp     x19, x20, [x0, #16]
+    0xa9425815, // ldp     x21, x22, [x0, #32]
+    0xa9436017, // ldp     x23, x24, [x0, #48]
+    0xa9446819, // ldp     x25, x26, [x0, #64]
+    0xa945701b, // ldp     x27, x28, [x0, #80]
+    0xf9402c1d, // ldr     x29, [x0, #88]
+    0x6d462408, // ldp     d8, d9, [x0, #96]
+    0x6d472c0a, // ldp     d10, d11, [x0, #112]
+    0x6d48340c, // ldp     d12, d13, [x0, #128]
+    0x6d493c0e, // ldp     d14, d15, [x0, #144]
+    0xd2800000, // mov     x0, #0x0
+    0xd65f03c0, // ret
+};
+
+DECL_SECTION_TEXT unsigned int fbrs_switch_context_code[] = {
+    0xf900001e, // str     x30, [x0]
+    0x910003e9, // mov     x9, sp
+    0xf9000409, // str     x9, [x0, #8]
+    0xa9015013, // stp     x19, x20, [x0, #16]
+    0xa9025815, // stp     x21, x22, [x0, #32]
+    0xa9036017, // stp     x23, x24, [x0, #48]
+    0xa9046819, // stp     x25, x26, [x0, #64]
+    0xa905701b, // stp     x27, x28, [x0, #80]
+    0xf9002c1d, // str     x29, [x0, #88]
+    0x6d062408, // stp     d8, d9, [x0, #96]
+    0x6d072c0a, // stp     d10, d11, [x0, #112]
+    0x6d08340c, // stp     d12, d13, [x0, #128]
+    0x6d093c0e, // stp     d14, d15, [x0, #144]
+    0xf940003e, // ldr     x30, [x1]
+    0xf9400429, // ldr     x9, [x1, #8]
+    0x9100013f, // mov     sp, x9
+    0xa9415033, // ldp     x19, x20, [x1, #16]
+    0xa9425835, // ldp     x21, x22, [x1, #32]
+    0xa9436037, // ldp     x23, x24, [x1, #48]
+    0xa9446839, // ldp     x25, x26, [x1, #64]
+    0xa945703b, // ldp     x27, x28, [x1, #80]
+    0xf9402c3d, // ldr     x29, [x1, #88]
+    0x6d462428, // ldp     d8, d9, [x1, #96]
+    0x6d472c2a, // ldp     d10, d11, [x1, #112]
+    0x6d48342c, // ldp     d12, d13, [x1, #128]
+    0x6d493c2e, // ldp     d14, d15, [x1, #144]
+    0xd2800000, // mov     x0, #0x0
+    0xd65f03c0, // ret
+};
+
+#endif // CPU_AARCH64
+
+static THREAD_LOCAL struct fbrs_context_t *current_fiber = 0;
 
 struct fbrs_context_t *fbrs_current_context() { return current_fiber; }
 
